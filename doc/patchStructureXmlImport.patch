@@ -1,0 +1,198 @@
+diff --git a/uabasecpp/uanodesetxmlparser.cpp b/uabasecpp/uanodesetxmlparser.cpp
+index ea49c6d..2b4123a 100644
+--- a/uabasecpp/uanodesetxmlparser.cpp
++++ b/uabasecpp/uanodesetxmlparser.cpp
+@@ -295,6 +295,7 @@ UaStatus UaNodesetXmlParser::readXmlFile(std::map<UaNodeId, UaBase::BaseNode*>&
+             if (!pDataType->structureDefinition().isNull())
+             {
+                 addFieldsOfSuperTypeDefinition(pDataType, mapNodes, checkedNodes);
++                setValueTypesForFields(pDataType, mapNodes);
+             }
+         }
+         it++;
+@@ -988,6 +989,11 @@ UaStatus UaNodesetXmlParser::parseDefinition(UaBase::DataType *pDataType)
+                 structureDefinition.setName(sDefinitionName);
+                 structureDefinition.setDataTypeId(pDataType->nodeId());
+                 structureDefinition.setDocumentation(pDataType->description());
++
++                OpcUa_Boolean isUnion;
++                parseBooleanAttribute("IsUnion", OpcUa_False, isUnion);
++                structureDefinition.setUnion(isUnion != OpcUa_False);
++
+                 parseStructureFields(structureDefinition);
+                 pDataType->setStructureDefinition(structureDefinition);
+             }
+@@ -1062,6 +1068,53 @@ UaStatus UaNodesetXmlParser::addFieldsOfSuperTypeDefinition(
+     return OpcUa_Good;
+ }
+ 
++// Sets the ValueTypes for of the fields.
++// This method to set the built in type for simple DataTypes. The super types must be defined
++// in mapNodes.
++void UaNodesetXmlParser::setValueTypesForFields(
++    UaBase::DataType *pDataType,
++    const std::map<UaNodeId, UaBase::BaseNode*>& mapNodes)
++{
++    for (int i = 0; i < pDataType->structureDefinition().childrenCount(); i++)
++    {
++        UaStructureField field = pDataType->structureDefinition().child(i);
++        if (field.valueType() != OpcUaType_Null)
++        {
++            // nothing to do if ValueType is already set.
++            continue;
++        }
++
++        // find the super type of the DataType of the field
++        UaNodeId superTypeId;
++        std::map<UaNodeId, UaBase::BaseNode*>::const_iterator itDataType = mapNodes.find(field.typeId());
++        if (itDataType != mapNodes.end())
++        {
++            UaBase::TypeNode *pSuperType = (UaBase::TypeNode*) itDataType->second;
++            superTypeId = pSuperType->superTypeId();
++        }
++
++        // super type is found
++        while (field.valueType() == OpcUaType_Null && !superTypeId.isNull())
++        {
++            field.setValueType(UaStructureField::builtInTypeFromDataTypeId(superTypeId));
++            if (field.valueType() == OpcUaType_Null)
++            {
++                // check the super type
++                std::map<UaNodeId, UaBase::BaseNode*>::const_iterator itSuperType = mapNodes.find(superTypeId);
++                if (itSuperType != mapNodes.end())
++                {
++                    UaBase::TypeNode *pSuperType = (UaBase::TypeNode*) itSuperType->second;
++                    superTypeId = pSuperType->superTypeId();
++                }
++                else
++                {
++                    superTypeId.clear();
++                }
++            }
++        }
++    }
++}
++
+ UaStructureDefinition UaNodesetXmlParser::structureDefinition(
+     const UaNodeId &dataTypeId,
+     const std::map<UaNodeId, UaBase::BaseNode*> &mapNodes,
+diff --git a/uabasecpp/uanodesetxmlparser.h b/uabasecpp/uanodesetxmlparser.h
+index fd66719..d0692f0 100644
+--- a/uabasecpp/uanodesetxmlparser.h
++++ b/uabasecpp/uanodesetxmlparser.h
+@@ -85,6 +85,9 @@ protected:
+         UaBase::DataType *pDataType,
+         const std::map<UaNodeId, UaBase::BaseNode*> &mapNodes,
+         std::map<UaNodeId, UaBase::BaseNode*> &mapCheckedNodes);
++    virtual void setValueTypesForFields(
++        UaBase::DataType *pDataType,
++        const std::map<UaNodeId, UaBase::BaseNode*>& mapNodes);
+     virtual UaStructureDefinition structureDefinition(
+         const UaNodeId &dataTypeId,
+         const std::map<UaNodeId, UaBase::BaseNode*> &mapNodes,
+diff --git a/uabasecpp/uastructurefield.cpp b/uabasecpp/uastructurefield.cpp
+index 2f1ea35..e477946 100644
+--- a/uabasecpp/uastructurefield.cpp
++++ b/uabasecpp/uastructurefield.cpp
+@@ -441,23 +441,35 @@ void UaStructureField::setOptional(bool bOptional)
+ OpcUa_BuiltInType UaStructureField::builtInTypeFromDataTypeId(const UaNodeId &dataTypeId, UaDataTypeDictionary *pDataTypeDictionary)
+ {
+     OpcUa_BuiltInType ret = OpcUaType_Null;
+-    if (dataTypeId.namespaceIndex() == 0 && dataTypeId.identifierNumeric() < 26)
++    if (dataTypeId.namespaceIndex() == 0)
+     {
+         switch (dataTypeId.identifierNumeric())
+         {
+         case OpcUaId_BaseDataType:
++        case OpcUaId_Number:
++        case OpcUaId_Integer:
++        case OpcUaId_UInteger:
+             ret = OpcUaType_Variant;
+             break;
+         case OpcUaId_Boolean:
+             ret = OpcUaType_Boolean;
+             break;
+         case OpcUaId_ByteString:
++        case OpcUaId_ApplicationInstanceCertificate:
++        case OpcUaId_ContinuationPoint:
++        case OpcUaId_Image:
++        case OpcUaId_ImageBMP:
++        case OpcUaId_ImageGIF:
++        case OpcUaId_ImageJPG:
++        case OpcUaId_ImagePNG:
+             ret = OpcUaType_ByteString;
+             break;
+         case OpcUaId_DataValue:
+             ret = OpcUaType_DataValue;
+             break;
+         case OpcUaId_DateTime:
++        case OpcUaId_Date:
++        case OpcUaId_UtcTime:
+             ret = OpcUaType_DateTime;
+             break;
+         case OpcUaId_DiagnosticInfo:
+@@ -473,9 +485,11 @@ OpcUa_BuiltInType UaStructureField::builtInTypeFromDataTypeId(const UaNodeId &da
+             ret = OpcUaType_LocalizedText;
+             break;
+         case OpcUaId_NodeId:
++        case OpcUaId_SessionAuthenticationToken:
+             ret = OpcUaType_NodeId;
+             break;
+         case OpcUaId_Double:
++        case OpcUaId_Duration:
+             ret = OpcUaType_Double;
+             break;
+         case OpcUaId_Float:
+@@ -500,9 +514,12 @@ OpcUa_BuiltInType UaStructureField::builtInTypeFromDataTypeId(const UaNodeId &da
+             ret = OpcUaType_UInt16;
+             break;
+         case OpcUaId_UInt32:
++        case OpcUaId_Counter:
++        case OpcUaId_IntegerId:
+             ret = OpcUaType_UInt32;
+             break;
+         case OpcUaId_UInt64:
++        case OpcUaId_BitFieldMaskDataType:
+             ret = OpcUaType_UInt64;
+             break;
+         case OpcUaId_QualifiedName:
+@@ -512,6 +529,13 @@ OpcUa_BuiltInType UaStructureField::builtInTypeFromDataTypeId(const UaNodeId &da
+             ret = OpcUaType_StatusCode;
+             break;
+         case OpcUaId_String:
++        case OpcUaId_DateString:
++        case OpcUaId_DecimalString:
++        case OpcUaId_DurationString:
++        case OpcUaId_LocaleId:
++        case OpcUaId_NumericRange:
++        case OpcUaId_Time:
++        case OpcUaId_TimeString:
+             ret = OpcUaType_String;
+             break;
+         case OpcUaId_Structure:
+@@ -598,3 +622,13 @@ void UaStructureField::setOptionSetDefinitionInternal(const UaOptionSetDefinitio
+         break;
+     }
+ }
++
++void UaStructureField::setValueTypeInternal(OpcUa_BuiltInType type)
++{
++    UA_D(UaStructureField);
++    d->m_valueType = type;
++    if (d->m_typeId.isNull())
++    {
++        d->m_typeId = UaNodeId((OpcUa_UInt32)type, 0);
++    }
++}
+diff --git a/uabasecpp/uastructurefield.h b/uabasecpp/uastructurefield.h
+index e690415..d2d3e5a 100644
+--- a/uabasecpp/uastructurefield.h
++++ b/uabasecpp/uastructurefield.h
+@@ -129,6 +129,7 @@ public:
+ 
+ private:
+     void setOptionSetDefinitionInternal(const UaOptionSetDefinition &newOptionSetDefinition);
++    void setValueTypeInternal(OpcUa_BuiltInType type);
+ 
+ };
+ #endif // UASTRUCTUREFIELD_H

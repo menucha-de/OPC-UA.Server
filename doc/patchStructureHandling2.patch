@@ -1,0 +1,66 @@
+diff --git a/uabasecpp/uanodesetxmlparser.cpp b/uabasecpp/uanodesetxmlparser.cpp
+index 2b4123a..b069d07 100644
+--- a/uabasecpp/uanodesetxmlparser.cpp
++++ b/uabasecpp/uanodesetxmlparser.cpp
+@@ -1096,7 +1096,7 @@ void UaNodesetXmlParser::setValueTypesForFields(
+         // super type is found
+         while (field.valueType() == OpcUaType_Null && !superTypeId.isNull())
+         {
+-            field.setValueType(UaStructureField::builtInTypeFromDataTypeId(superTypeId));
++            field.setValueTypeInternal(UaStructureField::builtInTypeFromDataTypeId(superTypeId));
+             if (field.valueType() == OpcUaType_Null)
+             {
+                 // check the super type
+diff --git a/uabasecpp/uastructurefield.cpp b/uabasecpp/uastructurefield.cpp
+index e477946..1d5088d 100644
+--- a/uabasecpp/uastructurefield.cpp
++++ b/uabasecpp/uastructurefield.cpp
+@@ -596,6 +596,16 @@ void UaStructureField::setEnumDefinitionInternal(const UaEnumDefinition &newEnum
+     d->m_valueType = OpcUaType_Int32;
+ }
+ 
++void UaStructureField::setValueTypeInternal(OpcUa_BuiltInType type)
++{
++    UA_D(UaStructureField);
++    d->m_valueType = type;
++    if (d->m_typeId.isNull())
++    {
++        d->m_typeId = UaNodeId((OpcUa_UInt32)type, 0);
++    }
++}
++
+ void UaStructureField::setOptionSetDefinitionInternal(const UaOptionSetDefinition &newOptionSetDefinition)
+ {
+     UA_D(UaStructureField);
+@@ -622,13 +632,3 @@ void UaStructureField::setOptionSetDefinitionInternal(const UaOptionSetDefinitio
+         break;
+     }
+ }
+-
+-void UaStructureField::setValueTypeInternal(OpcUa_BuiltInType type)
+-{
+-    UA_D(UaStructureField);
+-    d->m_valueType = type;
+-    if (d->m_typeId.isNull())
+-    {
+-        d->m_typeId = UaNodeId((OpcUa_UInt32)type, 0);
+-    }
+-}
+diff --git a/uabasecpp/uastructurefield.h b/uabasecpp/uastructurefield.h
+index d2d3e5a..b04e2f4 100644
+--- a/uabasecpp/uastructurefield.h
++++ b/uabasecpp/uastructurefield.h
+@@ -124,12 +124,12 @@ public:
+ 
+     void setStructureDefinitionInternal(const UaStructureDefinition &newStructureDefinition);
+     void setEnumDefinitionInternal(const UaEnumDefinition &newEnumDefinition);
++    void setValueTypeInternal(OpcUa_BuiltInType type);
+ 
+     static OpcUa_BuiltInType builtInTypeFromDataTypeId(const UaNodeId &dataTypeId, UaDataTypeDictionary *pDataTypeDictionary = NULL);
+ 
+ private:
+     void setOptionSetDefinitionInternal(const UaOptionSetDefinition &newOptionSetDefinition);
+-    void setValueTypeInternal(OpcUa_BuiltInType type);
+ 
+ };
+ #endif // UASTRUCTUREFIELD_H

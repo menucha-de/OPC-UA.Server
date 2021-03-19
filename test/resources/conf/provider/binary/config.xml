@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<IODataProviderConfiguration xmlns="urn:havis:opcua:server:iodataprovider:binary:xsd:1">
+    <!-- The remote endpoint of the IO data provider.
+         The server reconnects the remote side after the connection has been lost. The reconnect
+         delay starts with 1 second and is increased by 1 second after each retry. If the limit
+         maxReconnectDelay is reached then it is used for all further reconnections.
+    -->
+    <remote host="127.0.0.1" port="9090" 
+            connectTimeout="2" sendReceiveTimeout="2" maxReconnectDelay="2" />
+    <messages>
+        <!-- Incoming messages like responses and notifications are enqueued as long as other
+             messages are being processed. If a limit is reached then an exception is thrown. 
+        -->
+        <incoming maxQueueSize="100" expirationTime="3" />
+    </messages>
+</IODataProviderConfiguration>
+

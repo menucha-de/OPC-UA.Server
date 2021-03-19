@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<BinaryServerConfiguration xmlns="urn:havis:opcua:binaryserver:xsd:1">
+    <server port="42203" acceptTimeout="10" sendReceiveTimeout="0"/>
+    <!-- The remote endpoint of the binary server. -->
+    <remote host="127.0.0.1" port="4840" connectTimeout="120" sendReceiveTimeout="0"
+            maxReconnectDelay="10" publishingInterval="100" />
+    <!-- Possible log levels: none, error, warn, info, debug, trace.
+    The file path is either an absolute path or a relative path starting at the directory 
+    containing this configuration file. -->
+    <logging uaStackLogLevel="none" uaAppLogLevel="error"
+             filePath="../log/uabinaryserver.log" maxNumBackupFiles="0" />
+</BinaryServerConfiguration>
+

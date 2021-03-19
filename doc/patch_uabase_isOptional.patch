@@ -1,0 +1,16 @@
+diff --git a/uabasecpp/uanodesetxmlparser.cpp b/uabasecpp/uanodesetxmlparser.cpp
+index 9dd996c..e5c0af7 100644
+--- a/uabasecpp/uanodesetxmlparser.cpp
++++ b/uabasecpp/uanodesetxmlparser.cpp
+@@ -927,6 +927,11 @@ void UaNodesetXmlParser::parseStructureFields(UaStructureDefinition &structure)
+             {
+                 field.setArrayType(UaStructureField::ArrayType_Array);
+             }
++
++            OpcUa_Boolean isOptional;
++            parseBooleanAttribute("IsOptional", OpcUa_False, isOptional);
++            field.setOptional(isOptional);
++
+             if (!m_pXmlDocument->getChild("Description"))
+             {
+                 field.setDocumentation(parseLocalizedText());

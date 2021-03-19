@@ -1,0 +1,61 @@
+Debian Jessie
+-------------
+  /etc/apt/sources.list:
+    deb http://emdebian.org/tools/debian/ jessie main
+
+  curl http://emdebian.org/tools/debian/emdebian-toolchain-archive.key | sudo apt-key add -
+
+  dpkg --add-architecture armhf
+  apt-get update
+  apt-get install crossbuild-essential-armhf
+  apt-get install pkg-config:armhf
+
+  (https://wiki.debian.org/CrossToolchains)
+
+  (apt-get install libxml2-dev:amd64 libssl-dev:amd64)
+
+  apt-get install libxml2-dev:armhf libssl-dev:armhf
+
+Debian Stretch
+--------------
+  dpkg --add-architecture armhf
+  apt-get update
+  apt-get install crossbuild-essential-armhf
+  apt-get install pkg-config:armhf
+
+  (https://wiki.debian.org/CrossToolchains)
+
+  (apt-get install libxml2-dev:amd64 libssl1.0-dev:amd64)
+
+  apt-get install libxml2-dev:armhf libssl1.0-dev:armhf
+
+
+Debian
+------
+
+OPC UA SDK 1.5.2:
+  extract SDK
+
+  cd sdk/src/uabase/
+  patch -p1 < ../../../patch_uabase_isOptional.patch
+  patch -p1 < ../../../patchStructureXmlImport.patch
+  patch -p1 < ../../../patchStructureHandling2.patch
+  cd -
+
+  cp CMakeCross.txt sdk
+  cd sdk
+  rm lib/*
+  DEB_HOST_GNU_TYPE=arm-linux-gnueabihf ./buildSdk.sh -t $(pwd)/CMakeCross-opcuasdk.txt
+
+cpputest-3.7.2:
+  copy CMakeCross-cpputest.txt to cpputest root directory
+
+  mkdir -p target/build
+  cd target/build
+  DEB_HOST_GNU_TYPE=arm-linux-gnueabihf cmake ../.. -DCMAKE_TOOLCHAIN_FILE=../../CMakeCross.txt \
+      -DCMAKE_POSITION_INDEPENDENT_CODE=1 -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=.. -DLIB_INSTALL_DIR=..
+  make install
+
+server:
+  DEB_HOST_GNU_TYPE=arm-linux-gnueabihf CMAKE_TOOLCHAIN_FILE=CMakeCross.txt ./build.sh
+

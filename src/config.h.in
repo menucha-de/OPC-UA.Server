@@ -1,0 +1,3 @@
+#define SERVER_VERSION "${serverVersion}"
+#define ARCH "${arch}"
+#define DEBUG_POSTFIX "${CMAKE_DEBUG_POSTFIX}"
