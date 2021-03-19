@@ -257,7 +257,7 @@
         <!--Build information for the server application software-->
         <ProductUri>urn:UnifiedAutomation:UaServerCpp</ProductUri>
         <ManufacturerName>Unified Automation GmbH</ManufacturerName>
-        <ProductName>C++ SDK OPC UA Demo Server</ProductName>
+        <ProductName>C++ SDK OPC UA Server - AIM</ProductName>
         <SoftwareVersion>1.4.2</SoftwareVersion>
         <BuildNumber>275</BuildNumber>
         <!--Build information end-->

@@ -34,8 +34,13 @@ private:
     LoggerFactory* loggerFactory;
 
     OpcUa_UInt shutdownDelay;
-    char* appPath;
+    std::string confPath;
+    std::string providerPath;
     OpcUaServerCore* opcUaServerCore;
+
+    JNIEnv *env = NULL;
+    jobject dataProvider;
+    jobject properties;
 
     std::vector<void *> libHandles;
     std::map<IODataProviderNamespace::IODataProviderFactory*, destroyIODataProviderFactory_t*> ioDataProviderFactories;
@@ -46,19 +51,24 @@ private:
 
 Server::Server(OpcUa_UInt shutdownDelay) {
     d = new ServerPrivate();
-    d->log = LoggerFactory::getLogger("Server");
-    d->loggerFactory = NULL;
-    d->log->info("Starting server %s for %s", SERVER_VERSION, ARCH);
     registerSignalHandler();
-    d->appPath = getAppPath();
+    d->confPath = "/etc/opcua";
+    d->providerPath = "/usr/lib/provider/";
     d->shutdownDelay = shutdownDelay;
 }
 
 Server::~Server() {
     close();
-    delete[] d->appPath;
-    delete d;
+	delete d;
 }
+
+void Server::open(JNIEnv *env, jobject properties, jobject dataProvider)/*throws ServerException, IODataProviderException, SASModelProviderException*/ {
+	d->env = env;
+	d->properties = properties;
+	d->dataProvider = dataProvider;
+	open();
+}
+
 
 void Server::open()/*throws ServerException, IODataProviderException, SASModelProviderException*/ {
     try {
@@ -71,19 +81,18 @@ void Server::open()/*throws ServerException, IODataProviderException, SASModelPr
             throw ExceptionDef(ServerException, msg.str());
         }
 
-        UaString serverConfDir(d->appPath);
+        UaString serverConfDir(d->confPath.c_str());
         serverConfDir += "/conf/";
         UaString providerConfDir = serverConfDir + "provider/";
 
         // create and initialize server        
         d->opcUaServerCore = new OpcUaServerCore();
         UaString serverConfFile(serverConfDir + "ServerConfig.xml");
-        UaString appPath(d->appPath);
+        UaString appPath(d->confPath.c_str());
         d->opcUaServerCore->setServerConfig(serverConfFile, appPath);
 
         // replace default logger factory with factory for client SDK
-        Logger* oldLog = d->log;
-        d->loggerFactory = new LoggerFactory(*new ServerSdkLoggerFactory(), true /*attachValues*/);
+        // d->loggerFactory = new LoggerFactory(*new ServerSdkLoggerFactory(), true /*attachValues*/);
         d->log = LoggerFactory::getLogger("Server");
 
         // start the core server
@@ -98,11 +107,10 @@ void Server::open()/*throws ServerException, IODataProviderException, SASModelPr
         OpcUa_Boolean disableFlush;
         d->opcUaServerCore->getServerConfig()->getServerTraceSettings(traceEnabled,
                 traceLevel, maxTraceEntries, maxBackupFiles, traceFile, disableFlush);
-        oldLog->info("Activated logging to %s", traceFile.toUtf8());
+        d->log->info("Activated logging to %s", traceFile.toUtf8());
 
         // open libs
-        std::string providerLibDir(d->appPath);
-        providerLibDir += "/lib/provider/";
+        std::string providerLibDir(d->providerPath);
 
         std::string libPrefix("lib");
         std::string libSuffix;
@@ -173,7 +181,6 @@ void Server::open()/*throws ServerException, IODataProviderException, SASModelPr
                     ServerPrivate::destroyIODataProviderFactory_t* destroyIODataProviderFactoryDlsym
                             = (ServerPrivate::destroyIODataProviderFactory_t*) dlsym(libHandle, "destroyIODataProviderFactory");
                     d->ioDataProviderFactories[providerFactory] = destroyIODataProviderFactoryDlsym;
-                    ;
                 } else {
                     d->log->info("Ignoring IO data provider factory in %s", libFile);
                 }
@@ -197,7 +204,6 @@ void Server::open()/*throws ServerException, IODataProviderException, SASModelPr
                 }
             }
         }
-
         // open IO data provider
         for (std::map<std::string, IODataProviderNamespace::IODataProviderFactory*>::iterator i
                 = ioDataProviderFactories.begin(); i != ioDataProviderFactories.end(); i++) {
@@ -212,7 +218,11 @@ void Server::open()/*throws ServerException, IODataProviderException, SASModelPr
             std::vector<IODataProviderNamespace::IODataProvider*>::iterator iter;
             try {
                 for (iter = providers.begin(); iter != providers.end(); iter++) {
-                    (*iter)->open(moduleConfDir); // IODataProviderException
+                    if (d->env != NULL) {
+                    	(*iter)->open(d->env, d->properties, d->dataProvider);
+                    } else {
+                    	(*iter)->open(moduleConfDir); // IODataProviderException
+                    }
                     //TODO handle all providers
                     iter++;
                     break;
@@ -223,6 +233,7 @@ void Server::open()/*throws ServerException, IODataProviderException, SASModelPr
                 throw e;
             }
         }
+
         if (d->ioDataProviders.size() == 0) {
             std::ostringstream msg;
             msg << "No IO data provider library found in " << providerLibDir.c_str();
@@ -231,7 +242,6 @@ void Server::open()/*throws ServerException, IODataProviderException, SASModelPr
         //TODO create group of IO data providers:
         //       class IODataProviderGroup implementing IODataProvider interface
         IODataProviderNamespace::IODataProvider* ioDataProvider = d->ioDataProviders.at(0);
-
         // open SAS model provider
         for (std::map<std::string, SASModelProviderNamespace::SASModelProviderFactory*>::iterator i
                 = sasModelProviderFactories.begin(); i != sasModelProviderFactories.end(); i++) {
@@ -283,66 +293,80 @@ void Server::open()/*throws ServerException, IODataProviderException, SASModelPr
             delete serverApplicationModules;
         }
     } catch (CommonNamespace::Exception& e) {
-        close();
+    	close();
         throw;
     }
 }
 
+void Server::notification(JNIEnv *env, int ns, jobject id, jobject msg){
+	   for (std::vector<IODataProviderNamespace::IODataProvider*>::iterator i =
+	           d->ioDataProviders.begin(); i != d->ioDataProviders.end(); i++) {
+		   (*i)->notification(env, ns, id, msg);
+	   }
+}
+
+void Server::event(JNIEnv *env, int eNs, jobject event, int pNs, jobject param, long timestamp, int severity, jstring msg, jobject value){
+	   for (std::vector<IODataProviderNamespace::IODataProvider*>::iterator i =
+	           d->ioDataProviders.begin(); i != d->ioDataProviders.end(); i++) {
+		   (*i)->event(env, eNs, event, pNs, param, timestamp, severity, msg, value);
+	   }
+}
+
 void Server::close() {
-    if (d->opcUaServerCore != NULL) {
-        if (d->opcUaServerCore->isStarted()) {
-            // stop the server and wait some time if clients are connected
-            // to allow them to disconnect after they received the shutdown signal
-            d->opcUaServerCore->stop(d->shutdownDelay, UaLocalizedText("", "User shutdown"));
-        }
-        delete d->opcUaServerCore;
-        d->opcUaServerCore = NULL;
-    }
-    // close and delete SAS model providers
-    for (std::vector<SASModelProviderNamespace::SASModelProvider*>::iterator i =
-            d->sasModelProviders.begin(); i != d->sasModelProviders.end(); i++) {
-        (*i)->close();
-        delete *i;
-    }
-    d->sasModelProviders.clear();
-    // destroy SAS model provider factories
-    for (std::map<SASModelProviderNamespace::SASModelProviderFactory*,
-            ServerPrivate::destroySASModelProviderFactory_t*>::iterator i =
-            d->sasModelProviderFactories.begin(); i != d->sasModelProviderFactories.end(); i++) {
-        SASModelProviderNamespace::SASModelProviderFactory* factory = (*i).first;
-        ServerPrivate::destroySASModelProviderFactory_t* destroy = (*i).second;
-        destroy(factory);
-    }
-    d->sasModelProviderFactories.clear();
+	if (d->opcUaServerCore != NULL) {
+	       if (d->opcUaServerCore->isStarted()) {
+	           // stop the server and wait some time if clients are connected
+	           // to allow them to disconnect after they received the shutdown signal
+	           d->opcUaServerCore->stop(d->shutdownDelay, UaLocalizedText("", "User shutdown"));
+	       }
+	       delete d->opcUaServerCore;
+	       d->opcUaServerCore = NULL;
+	   }
+	   // close and delete SAS model providers
+	   for (std::vector<SASModelProviderNamespace::SASModelProvider*>::iterator i =
+	           d->sasModelProviders.begin(); i != d->sasModelProviders.end(); i++) {
+	       (*i)->close();
+	       delete *i;
+	   }
+	   d->sasModelProviders.clear();
+	   // destroy SAS model provider factories
+	   for (std::map<SASModelProviderNamespace::SASModelProviderFactory*,
+	           ServerPrivate::destroySASModelProviderFactory_t*>::iterator i =
+	           d->sasModelProviderFactories.begin(); i != d->sasModelProviderFactories.end(); i++) {
+	       SASModelProviderNamespace::SASModelProviderFactory* factory = (*i).first;
+	       ServerPrivate::destroySASModelProviderFactory_t* destroy = (*i).second;
+	       destroy(factory);
+	   }
+	   d->sasModelProviderFactories.clear();
 
-    // close and delete IO data providers
-    for (std::vector<IODataProviderNamespace::IODataProvider*>::iterator i =
-            d->ioDataProviders.begin(); i != d->ioDataProviders.end(); i++) {
-        (*i)->close();
-        delete *i;
-    }
-    d->ioDataProviders.clear();
-    // destroy IO data provider factories
-    for (std::map<IODataProviderNamespace::IODataProviderFactory*,
-            ServerPrivate::destroyIODataProviderFactory_t*>::iterator i =
-            d->ioDataProviderFactories.begin(); i != d->ioDataProviderFactories.end(); i++) {
-        IODataProviderNamespace::IODataProviderFactory* factory = (*i).first;
-        ServerPrivate::destroyIODataProviderFactory_t* destroy = (*i).second;
-        destroy(factory);
-    }
-    d->ioDataProviderFactories.clear();
+	   // close and delete IO data providers
+	   for (std::vector<IODataProviderNamespace::IODataProvider*>::iterator i =
+	           d->ioDataProviders.begin(); i != d->ioDataProviders.end(); i++) {
+	       (*i)->close();
+	       delete *i;
+	   }
+	   d->ioDataProviders.clear();
+	   // destroy IO data provider factories
+	   for (std::map<IODataProviderNamespace::IODataProviderFactory*,
+	           ServerPrivate::destroyIODataProviderFactory_t*>::iterator i =
+	           d->ioDataProviderFactories.begin(); i != d->ioDataProviderFactories.end(); i++) {
+	       IODataProviderNamespace::IODataProviderFactory* factory = (*i).first;
+	       ServerPrivate::destroyIODataProviderFactory_t* destroy = (*i).second;
+	       destroy(factory);
+	   }
+	   d->ioDataProviderFactories.clear();
 
-    // close libs
-    for (std::vector<void*>::iterator i = d->libHandles.begin(); i != d->libHandles.end(); i++) {
-        dlclose(*i);
-    }
-    d->libHandles.clear();
+	   // close libs
+	   for (std::vector<void*>::iterator i = d->libHandles.begin(); i != d->libHandles.end(); i++) {
+	       dlclose(*i);
+	   }
+	   d->libHandles.clear();
 
-    delete d->loggerFactory;
-    d->loggerFactory = NULL;
+	   delete d->loggerFactory;
+	   d->loggerFactory = NULL;
 
-    // clean up the UA Stack platform layer
-    UaPlatformLayer::cleanup();
-    // clean up the XML parser
-    UaXmlDocument::cleanupParser();
+	   // clean up the UA Stack platform layer
+	   UaPlatformLayer::cleanup();
+	   // clean up the XML parser
+	   UaXmlDocument::cleanupParser();
 }

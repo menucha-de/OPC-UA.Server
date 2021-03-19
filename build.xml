@@ -1,135 +1,34 @@
-<?xml version="1.0" encoding="UTF-8"?>
-<!-- 
-This build script is a wrapper for "build.sh".
-Environment variables must be set as ant properties via command line eg.
-  ant -DCMAKE_BUILD_TYPE=Debug
-Additionally the variable DEB_HOST_GNU_TYPE can be overridden
-with property "platform": linux-amd64, linux-arm
--->
-<project name="havis.opcua.server" default="publish" xmlns:ivy="antlib:org.apache.ivy.ant" xmlns:d="havis.opcua.server.def">
-    <!-- load custom properties if file exists
-   (properties from command line are not overwritten because properties are
-    immutable) -->
-    <property file="${basedir}/build.properties" />
-    <!-- load default properties
-    (existing properties are not overwritten because properties are immutable) -->
-    <property file="${basedir}/build.properties.example" />    
-    <property name="target.dir" value="${basedir}/target" />
-    <property name="resources.dir" value="${basedir}/resources" />
-    <property name="lib.ivy.file" value="ivy.xml" />
-    <property name="lib.ivy.x86_64-linux-gnu.file" value="ivy-x86_64-linux-gnu.xml" />
+<?xml version="1.0"?>
+<project name="havis.util.opcua" default="publish" xmlns:if="ant:if" xmlns:ivy="antlib:org.apache.ivy.ant">
 
-    <macrodef name="retrieve-libs" uri="havis.opcua.server.def">
-        <attribute name="ivyfile" />
-        <attribute name="destdir" />
-        <sequential>
-            <ivy:resolve file="@{ivyfile}" log="download-only" />
-            <ivy:retrieve pattern="@{destdir}/[artifact].[ext]" log="download-only" />
-        </sequential>
-    </macrodef>
+	<property file="${basedir}/build.properties" />
+	
+	<import>
+		<url url="${ivy.url}/ant/default.xml" />
+	</import>
 
-    <macrodef name="unpack-tgz" uri="havis.opcua.server.def">
-        <attribute name="dir" />
-        <attribute name="fileprefix" />
-        <sequential>
-            <mkdir dir="@{dir}/@{fileprefix}/" />
-            <untar dest="@{dir}/@{fileprefix}/" compression="gzip">
-                <fileset dir="@{dir}" includes="@{fileprefix}*.tgz" />
-            </untar>
-        </sequential>
-    </macrodef>
+	<target name="clean-cache" description="Cleans the ivy cache">
+		<clean-cache />
+	</target>
+	
+	<target name="clean-all" description="Cleans the project and ivy cache">
+		<clean-all />
+	</target>	
 
-    <target name="clean" description="Cleans the project">
-        <delete dir="${basedir}/target" />
-    </target>
-    
-    <target name="clean-cache" description="Cleans the ivy cache">
-        <ivy:cleancache />
-    </target>
-    
-    <target name="clean-all" depends="clean, clean-cache" 
-            description="Cleans the project and ivy cache" />
-    
-    <target name="check.build.properties">
-        <fail message="Missing property 'ivy.url'. Does 'build.properties' file exists?" unless="ivy.url" />
-        <fail message="Missing property 'ivy.settings'. Does 'build.properties' file exists?" unless="ivy.settings" />
-        <fail message="Missing property 'ivy.resolver'. Does 'build.properties' file exists?" unless="ivy.resolver" />
-    </target>
-    
-    <target name="set-debHostGnuType-platform">
-        <condition property="debHostGnuType" value="x86_64-linux-gnu">
-            <and>
-                <isset property="platform" />
-                <matches pattern="^linux-amd64$" string="${platform}"/>
-            </and>
-        </condition>
-        <condition property="debHostGnuType" value="arm-linux-gnueabihf">
-            <and>
-                <isset property="platform" />
-                <matches pattern="^linux-arm$" string="${platform}"/>
-            </and>
-        </condition>        
-        <property name="debHostGnuType" value="${DEB_HOST_GNU_TYPE}" />
-        
-        <condition property="platform" value="linux-amd64">
-            <matches pattern="^x86_64-linux-gnu$" string="${DEB_HOST_GNU_TYPE}"/>
-        </condition>
-        <condition property="platform" value="linux-arm">
-            <matches pattern="^arm-linux-gnueabihf$" string="${DEB_HOST_GNU_TYPE}"/>
-        </condition>
-        <echoproperties />
-    </target>    
+	<target name="retrieve" >
+		<retrieve />
+	</target>
 
-    <target name="retrieve" depends="check.build.properties, set-debHostGnuType-platform" 
-            description="Retrieves libraries from ivy repository">
-        <d:retrieve-libs ivyfile="${lib.ivy.file}" destdir="${target.dir}/ivy-${debHostGnuType}/lib/" />
-        <d:unpack-tgz dir="${target.dir}/ivy-${debHostGnuType}/lib/" fileprefix="ua-dev" />
-    </target>
+	<target name="jar" description="Builds a JAR file from the project.">
+		<compile dst="${build.dir.classes}">
+			<src path="${src.main.dir}" />
+		</compile>
+		<module-info />
+		<jar-bin />
+	</target>
 
-    <target name="build" depends="set-debHostGnuType-platform" description="Builds the server">
-        <!-- target "retrieve" is called by build.sh -->
-        <exec executable="bash" failonerror="true">
-            <env key="CMAKE_BUILD_TYPE" value="${CMAKE_BUILD_TYPE}" />
-            <env key="DEB_HOST_GNU_TYPE" value="${debHostGnuType}" />
-            <env key="CMAKE_TOOLCHAIN_FILE" value="${CMAKE_TOOLCHAIN_FILE}" />
-            <env key="IVY_URL" value="${ivy.url}" />
-            <env key="IVY_SETTINGS" value="${ivy.settings}" />
-            <env key="IVY_RESOLVER" value="${ivy.resolver}" />
-            <arg line="build.sh" />
-        </exec>
-    </target>
-    
-    <target name="test" description="Runs the unit tests (x86_64-linux-gnu)">
-        <!-- target "retrieve" is called by build.sh -->
-        <exec executable="bash" failonerror="true">
-            <env key="CMAKE_BUILD_TYPE" value="Debug" />
-            <env key="DEB_HOST_GNU_TYPE" value="x86_64-linux-gnu" />
-            <env key="CMAKE_TOOLCHAIN_FILE" value="" />
-            <env key="IVY_URL" value="${ivy.url}" />
-            <env key="IVY_SETTINGS" value="${ivy.settings}" />
-            <env key="IVY_RESOLVER" value="${ivy.resolver}" />
-            <arg line="build.sh" />
-        </exec>
-        <echo message="Starting unit tests..." />
-        <exec executable="${target.dir}/build-x86_64-linux-gnu-Debug/test/src/ServerTest" 
-              failonerror="true" />
-    </target>
-    
-    <target name="publish" depends="build" description="Publishes the TGZ to the repository">
-        <!-- load properties configured in cmake.properties: server.version -->
-        <property file="${target.dir}/build-${debHostGnuType}-${CMAKE_BUILD_TYPE}/ant.properties" />
-        <!-- create artifact -->
-        <tar destfile="${target.dir}/havis.opcua.server-${platform}.tgz" compression="gzip">
-            <tarfileset dir="${target.dir}/server-${debHostGnuType}-${CMAKE_BUILD_TYPE}/"
-                        prefix="server-${server.version}-${platform}-${CMAKE_BUILD_TYPE}" />
-        </tar>
-        <!-- delete previously published ivy file -->
-        <delete dir="${target.dir}" includes="ivy.xml" />
-        <!-- publish artifact -->
-        <ivy:resolve file="${resources.dir}/ivy.xml" log="download-only" />
-        <ivy:publish resolver="${ivy.resolver}" pubrevision="${server.version}" status="integration"
-                     overwrite="true">
-            <artifacts pattern="${target.dir}/[artifact].[ext]" />
-        </ivy:publish>
-    </target>
+	<target name="publish" depends="jar" description="Publishes the JAR to the repository">
+		<publish jar="false" doc="false" src="false" app="false" />
+	</target>
+	
 </project>

@@ -7,6 +7,10 @@
 #include "SubscriberCallback.h"
 #include <string>
 #include <vector>
+#include <jni.h>
+#include <jni_md.h>
+#include <sasModelProvider/base/NodeBrowser.h>
+
 
 namespace IODataProviderNamespace {
 
@@ -19,6 +23,9 @@ namespace IODataProviderNamespace {
         // If the data provider is already connected then an exception is thrown.
         // References to the parameter values must not be saved in the implementation.
         virtual void open(const std::string& confDir) /* throws IODataProviderException */ = 0;
+
+        // Opens the JNI interface for Java usage
+        virtual void open(JNIEnv *env, jobject properties, jobject dataProvider) /* throws IODataProviderException */ = 0;
 
         // Closes the communication to the data provider.
         // If the data provider is already disconnected then nothing is to be done.
@@ -80,6 +87,12 @@ namespace IODataProviderNamespace {
         // References to the parameter values must not be saved in the implementation.
         virtual void unsubscribe(
                 const std::vector<const NodeId*>& nodeIds) /* throws IODataProviderException */ = 0;
+
+        virtual void notification(JNIEnv *env, int ns, jobject id, jobject value) = 0;
+        virtual void event(JNIEnv *env, int eNs, jobject event, int pNs, jobject param, long timestamp, int severity, jstring msg, jobject value) = 0;
+
+        virtual void setNodeBrowser(SASModelProviderNamespace::NodeBrowser* nodeBrowser) = 0;
+
     };
 
 } /* namespace IODataProviderNamespace */

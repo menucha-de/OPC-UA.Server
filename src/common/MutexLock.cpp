@@ -12,7 +12,7 @@ namespace CommonNamespace {
     MutexLock::MutexLock(Mutex& mutex) {
         d = new MutexLockPrivate();
         d->mutex = &mutex;
-        pthread_mutex_lock(&d->mutex->getMutex());
+        //pthread_mutex_lock(&d->mutex->getMutex());
     }
 
     MutexLock::~MutexLock() {
@@ -22,7 +22,7 @@ namespace CommonNamespace {
 
     void MutexLock::unlock() {
         if (d->mutex != NULL) {
-            pthread_mutex_unlock(&d->mutex->getMutex());
+            //pthread_mutex_unlock(&d->mutex->getMutex());
             d->mutex = NULL;
         }
     }

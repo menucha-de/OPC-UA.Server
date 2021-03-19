@@ -39,6 +39,7 @@ NodeAttributes::~NodeAttributes() {
         delete d->value;
         delete d->dataType;
         delete d->exception;
+        delete d->nodeClass;
     }
     delete d;
 }

@@ -1,0 +1,3 @@
+resources/conf/provider/uanodesetxml/models/10_di.xml /etc/opcua/conf/provider/uanodesetxml/models/
+resources/conf/provider/uanodesetxml/models/20_autoid.xml /etc/opcua/conf/provider/uanodesetxml/models/
+resources/conf/provider/uanodesetxml/models/30_aim.xml /etc/opcua/conf/provider/uanodesetxml/models/

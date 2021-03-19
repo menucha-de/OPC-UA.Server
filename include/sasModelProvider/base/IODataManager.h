@@ -20,6 +20,8 @@ public:
 	virtual UaStatus writeValues(const UaVariableArray &arrUaVariables,
 			const PDataValueArray &arrpDataValues,
 			UaStatusCodeArray &arrStatusCodes) = 0;
+	virtual OpcUa_Boolean beforeSetAttributeValue(Session* pSession, UaNode* pNode,
+			OpcUa_Int32 attributeId, const UaDataValue& dataValue, OpcUa_Boolean& checkWriteMask) = 0;
 	virtual void afterSetAttributeValue(Session* pSession, UaNode* pNode,
 			OpcUa_Int32 attributeId, const UaDataValue& dataValue) = 0;
 	virtual void variableCacheMonitoringChanged(UaVariableCache* pVariable,

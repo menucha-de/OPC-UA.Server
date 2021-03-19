@@ -15,6 +15,7 @@
 #include <uanodeid.h> // UaNodeId
 #include <uavariant.h> // UaVariant
 #include <vector>
+#include <uaargument.h> // UaArgument
 
 namespace SASModelProviderNamespace {
 
@@ -35,6 +36,8 @@ namespace SASModelProviderNamespace {
         virtual UaStatus writeValues(const UaVariableArray &arrUaVariables,
                 const PDataValueArray &arrpDataValues,
                 UaStatusCodeArray &arrStatusCodes);
+        virtual OpcUa_Boolean beforeSetAttributeValue(Session* pSession, UaNode* pNode,
+                OpcUa_Int32 attributeId, const UaDataValue& dataValue, OpcUa_Boolean& checkWriteMask);
         virtual void afterSetAttributeValue(Session* pSession, UaNode* pNode,
                 OpcUa_Int32 attributeId, const UaDataValue& dataValue);
         virtual void variableCacheMonitoringChanged(UaVariableCache* pVariable,
@@ -70,6 +73,7 @@ namespace SASModelProviderNamespace {
         // The returned Variant instance must be destroyed by the caller.
         virtual IODataProviderNamespace::Variant* convert(const UaVariant& value,
                 const UaNodeId& dataTypeId);
+
     private:
         HaNodeManagerIODataProviderBridge(const HaNodeManagerIODataProviderBridge&);
         HaNodeManagerIODataProviderBridge& operator=(

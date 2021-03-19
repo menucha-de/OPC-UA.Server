@@ -181,11 +181,11 @@ void HaSubscription::add(std::vector<NodeAttributes*>& nodeAttributes,
         UaClientSdk::ServiceSettings serviceSettings;
         serviceSettings.callTimeout = d->sendReceiveTimeout * 1000;
         UaMonitoredItemCreateResults results;
-        d->log->info("Adding %d monitored items to subscription %d", itemsToCreate.length(),
+        d->log->debug("Adding %d monitored items to subscription %d", itemsToCreate.length(),
                 d->subscription->subscriptionId());
         UaStatus result = d->subscription->createMonitoredItems(serviceSettings,
                 OpcUa_TimestampsToReturn_Both, itemsToCreate, results);
-        d->log->info("Added monitored items");
+        d->log->debug("Added monitored items");
         // if subscribing succeeded
         if (result.isGood()) {
             // for each result
@@ -286,11 +286,11 @@ void HaSubscription::remove(const std::vector<const UaNodeId*>& nodeIds)
     UaClientSdk::ServiceSettings serviceSettings;
     serviceSettings.callTimeout = d->sendReceiveTimeout * 1000;
     UaStatusCodeArray results;
-    d->log->info("Removing %d monitored items from subscription %d", monitoredItemIds.length(),
+    d->log->debug("Removing %d monitored items from subscription %d", monitoredItemIds.length(),
             d->subscription->subscriptionId());
     UaStatus result = d->subscription->deleteMonitoredItems(serviceSettings, monitoredItemIds,
             results);
-    d->log->info("Removed monitored items");
+    d->log->debug("Removed monitored items");
     // if deleting succeeded
     if (result.isGood()) {
         HaSubscriptionException* exception = NULL;
@@ -380,8 +380,8 @@ void HaSubscriptionPrivate::createSubscription() /* throws HaSubscriptionExcepti
         throw ExceptionDef(HaSubscriptionException, msg.str());
     }
 
-    if (log->isInfoEnabled()) {
-        log->info("Created subscription %d: revisedPublishingInterval=%f,revisedSubscriptionTimeout=%d,revisedKeepAliveInterval=%d\n",
+    if (log->isDebugEnabled()) {
+        log->debug("Created subscription %d: revisedPublishingInterval=%f,revisedSubscriptionTimeout=%d,revisedKeepAliveInterval=%d\n",
                 subscription->subscriptionId(), subscriptionSettings.publishingInterval,
                 static_cast<OpcUa_UInt32> (
                 subscriptionSettings.lifetimeCount * subscriptionSettings.publishingInterval),
@@ -407,13 +407,13 @@ void HaSubscriptionPrivate::deleteSubscription() /* throws HaSubscriptionExcepti
         throw ExceptionDef(HaSubscriptionException, msg.str());
     }
 
-    log->info("Deleted subscription %d\n", subscriptionId);
+    log->debug("Deleted subscription %d\n", subscriptionId);
     subscription = NULL;
 }
 
 void HaSubscriptionPrivate::subscriptionStatusChanged(
         OpcUa_UInt32 clientSubscriptionHandle, const UaStatus & status) {
-    log->info("Status changed for subscription %d: %s",
+    log->debug("Status changed for subscription %d: %s",
             subscription->subscriptionId(), status.toString().toUtf8());
     switch (status.code()) {
         case OpcUa_BadSubscriptionIdInvalid:
@@ -465,7 +465,7 @@ void HaSubscriptionPrivate::subscriptionStatusChanged(
 void HaSubscriptionPrivate::dataChange(OpcUa_UInt32 clientSubscriptionHandle,
         const UaDataNotifications& dataNotifications, const UaDiagnosticInfos & diagnosticInfos) {
     MutexLock lock(*mutex);
-    log->info("Received %d data change notifications", dataNotifications.length());
+    log->debug("Received %d data change notifications", dataNotifications.length());
     log->debug("DataChange Notifications ----------------------");
     // for each notification
     for (OpcUa_UInt32 i = 0; i < dataNotifications.length(); i++) {
@@ -511,7 +511,7 @@ void HaSubscriptionPrivate::dataChange(OpcUa_UInt32 clientSubscriptionHandle,
 void HaSubscriptionPrivate::newEvents(OpcUa_UInt32 clientSubscriptionHandle,
         UaEventFieldLists & eventFieldList) {
     MutexLock lock(*mutex);
-    log->info("Received %d events", eventFieldList.length());
+    log->debug("Received %d events", eventFieldList.length());
     log->debug("Events ----------------------------------------");
     // for each event
     for (OpcUa_UInt32 i = 0; i < eventFieldList.length(); i++) {

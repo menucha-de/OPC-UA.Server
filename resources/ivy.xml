@@ -1,13 +1,13 @@
 <?xml version="1.0" encoding="utf-8"?>
 <ivy-module version="2.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="http://ant.apache.org/ivy/schemas/ivy.xsd">
 
-	<info organisation="havis/opcua" module="server-${platform}" default="true" />
+	<info organisation="havis/opcua" module="server" default="true" />
 
 	<configurations>
 		<conf name="default" visibility="public" />
 	</configurations>
 
 	<publications>
-		<artifact name="havis.opcua.server-${platform}" type="tgz" ext="tgz" conf="default" />
+		<artifact name="havis.opcua.server" type="tgz" ext="tgz" conf="default" />
 	</publications>
 </ivy-module>

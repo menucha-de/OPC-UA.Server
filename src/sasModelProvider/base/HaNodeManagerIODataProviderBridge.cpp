@@ -104,6 +104,7 @@ namespace SASModelProviderNamespace {
         OpcUa_UInt16 nsIndex = d->haNodeManager->getNodeManagerBase().getNameSpaceIndex();
         try {
             d->nodeBrowser = new NodeBrowser(*d->haNodeManager);
+            d->ioDataProvider->setNodeBrowser(d->nodeBrowser);
             d->ioDataProviderSubscriberCallback = new IODataProviderSubscriberCallback(
                     *d->haNodeManager);
             d->dfltNodeProps = d->ioDataProvider->getDefaultNodeProperties(ns,
@@ -398,49 +399,60 @@ namespace SASModelProviderNamespace {
         return ret;
     }
 
+    OpcUa_Boolean HaNodeManagerIODataProviderBridge::beforeSetAttributeValue(
+            Session* pSession, UaNode* pNode, OpcUa_Int32 attributeId,
+            const UaDataValue& dataValue, OpcUa_Boolean& checkWriteMask) {
+    	UaNodeId variableNodeId = pNode->nodeId();
+		UaVariable& variable = *d->nodeBrowser->getVariable(variableNodeId);
+		// convert UaNodeId to NodeId
+		NodeId* nodeId = d->converter->convertUa2io(variableNodeId); // ConversionException
+		ScopeGuard<NodeId> nodeIdSG(nodeId);
+		// if value handling is enabled
+		if (d->getValueHandling(*nodeId) != NodeProperties::NONE) {
+			if (d->log->isInfoEnabled()) {
+				d->log->info("ASET %-20s nodeId=%s,value=%s",
+						variable.browseName().toString().toUtf8(),
+						variable.nodeId().toXmlString().toUtf8(),
+						UaVariant(*dataValue.value()).toFullString().toUtf8());
+			}
+			try {
+				// convert UaVariant to Variant
+				Variant* value = d->converter->convertUa2io(UaVariant(*dataValue.value()),
+						variable.dataType()); // ConversionException
+				NodeData nd(*nodeIdSG.detach(), value, true /* attachValues */);
+				std::vector<const NodeData*> nodeData;
+				nodeData.push_back(&nd);
+				d->ioDataProvider->write(nodeData,
+						false /* sendValueChangedEvents */); // IODataProviderException
+			} catch (Exception& e) {
+				std::ostringstream msg;
+				msg << "The writing of node values to IO data provider after server cache modification failed";
+				HaNodeManagerIODataProviderBridgeException ex =
+						ExceptionDef(HaNodeManagerIODataProviderBridgeException, msg.str());
+				ex.setCause(&e);
+				// there is no way to inform the OPC UA server => log the exception
+				std::string st;
+				ex.getStackTrace(st);
+				d->log->error("Exception while writing values: %s", st.c_str());
+				return false;
+			}
+		} else if (d->log->isInfoEnabled()) {
+
+			d->log->info("ASET %-20s Ignoring variable due to disabled value handling",
+					variable.nodeId().toXmlString().toUtf8());
+		}
+		variable.releaseReference();
+
+    	return true;
+    }
+
     void HaNodeManagerIODataProviderBridge::afterSetAttributeValue(
             Session* pSession, UaNode* pNode, OpcUa_Int32 attributeId,
             const UaDataValue& dataValue) {
-        UaNodeId variableNodeId = pNode->nodeId();
-        UaVariable& variable = *d->nodeBrowser->getVariable(variableNodeId);
-        // convert UaNodeId to NodeId
-        NodeId* nodeId = d->converter->convertUa2io(variableNodeId); // ConversionException                    
-        ScopeGuard<NodeId> nodeIdSG(nodeId);
-        // if value handling is enabled
-        if (d->getValueHandling(*nodeId) != NodeProperties::NONE) {
-            if (d->log->isInfoEnabled()) {
-                d->log->info("ASET %-20s nodeId=%s,value=%s",
-                        variable.browseName().toString().toUtf8(),
-                        variable.nodeId().toXmlString().toUtf8(),
-                        UaVariant(*dataValue.value()).toFullString().toUtf8());
-            }
-            try {
-                // convert UaVariant to Variant
-                Variant* value = d->converter->convertUa2io(UaVariant(*dataValue.value()),
-                        variable.dataType()); // ConversionException
-                NodeData nd(*nodeIdSG.detach(), value, true /* attachValues */);
-                std::vector<const NodeData*> nodeData;
-                nodeData.push_back(&nd);
-                d->ioDataProvider->write(nodeData,
-                        false /* sendValueChangedEvents */); // IODataProviderException
-            } catch (Exception& e) {
-                std::ostringstream msg;
-                msg << "The writing of node values to IO data provider after server cache modification failed";
-                HaNodeManagerIODataProviderBridgeException ex =
-                        ExceptionDef(HaNodeManagerIODataProviderBridgeException, msg.str());
-                ex.setCause(&e);
-                // there is no way to inform the OPC UA server => log the exception
-                std::string st;
-                ex.getStackTrace(st);
-                d->log->error("Exception while writing values: %s", st.c_str());
-            }
-        } else if (d->log->isInfoEnabled()) {
-
-            d->log->info("ASET %-20s Ignoring variable due to disabled value handling",
-                    variable.nodeId().toXmlString().toUtf8());
-        }
-        variable.releaseReference();
     }
+
+
+
 
     void HaNodeManagerIODataProviderBridge::variableCacheMonitoringChanged(
             UaVariableCache* pVariable,
@@ -505,7 +517,8 @@ namespace SASModelProviderNamespace {
             UaExtensionObjectArray argsEOA;
             args.toExtensionObjectArray(argsEOA);
             for (int i = 0; i < argsEOA.length(); i++) {
-                outputArgsArguments->push_back(new UaArgument(argsEOA[i]));
+            	UaArgument *a = new UaArgument(argsEOA[i]);
+                outputArgsArguments->push_back(a);
             }
         }
         UaVariantArray returnOutputArgsValues;
@@ -634,6 +647,10 @@ namespace SASModelProviderNamespace {
                         *d->ioDataProviderSubscriberCallback) // IODataProviderException
                         : d->dataGenerator->subscribe(*asyncNodeIds,
                         *d->ioDataProviderSubscriberCallback);
+                //Test unsubscribe
+				//if (d->dataGenerator == NULL){
+				//d->ioDataProvider->unsubscribe(*asyncNodeIds);
+				//}
                 VectorScopeGuard<IODataProviderNamespace::NodeData> resultsSG(results);
                 OpcUa_UInt32 resultCount = results == NULL ? 0 : results->size();
                 if (resultCount != asyncNodeIds->size() && exception == NULL) {
@@ -732,6 +749,10 @@ namespace SASModelProviderNamespace {
                         *d->ioDataProviderSubscriberCallback) // IODataProviderException                                
                         : d->dataGenerator->subscribe(*asyncNodeIds,
                         *d->ioDataProviderSubscriberCallback);
+                //Test unsubscribe
+				//if (d->dataGenerator == NULL){
+				//	d->ioDataProvider->unsubscribe(*asyncNodeIds);
+				//}
                 VectorScopeGuard<NodeData> resultsSG(results);
                 OpcUa_UInt32 resultCount = results == NULL ? 0 : results->size();
                 if (resultCount != asyncNodeIds->size() && exception == NULL) {
@@ -804,7 +825,7 @@ namespace SASModelProviderNamespace {
                     std::string("Cannot subscribe for variables with asynchronous value handling"));
             ex.setCause(exception);
             delete exception;
-            throw ex;
+            //throw ex;
         }
     }
 

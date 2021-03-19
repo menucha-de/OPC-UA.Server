@@ -1,0 +1,25 @@
+Source: uaservice
+Maintainer: HARTING IT_SD <opensource@HARTING.com>
+Build-Depends: debhelper, cmake, pkg-config, default-jdk-headless:amd64, ant:all, ivy:all, libjsch-java:all, libssl1.0-dev, libxml2-dev, libuastack-dev, libc6-dev-armhf-cross
+ 
+Package: libjava-ua
+Architecture: any
+Depends: libuastack, libxml2
+Description: OPC-UA Service c/c++ implementation
+Priority: optional
+Section: lib
+
+
+Package: libjava-ua-models-aim
+Architecture: any
+Depends: libjava-ua
+Description: Model Set for OPC-UA Server for AIM
+Priority: optional
+Section: misc
+
+Package: libjava-ua-models-requested
+Architecture: any
+Depends: libjava-ua
+Description: Model Set for OPC-UA Server for testing requirements  
+Priority: optional
+Section: misc

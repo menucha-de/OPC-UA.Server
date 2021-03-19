@@ -14,7 +14,7 @@ namespace IODataProviderNamespace {
         enum Type {
             BOOL = 1, SCHAR = 2, CHAR = 3, INT = 4, UINT = 5, LONG = 6, ULONG = 7, LLONG = 8,
             ULLONG = 9, FLOAT = 10, DOUBLE = 11, STRING = 12,
-            BYTE_STRING = 15, LOCALIZED_TEXT = 21
+            BYTE_STRING = 15, LOCALIZED_TEXT = 21, VARIANT = 24
         };
 
         // INT with value 0        

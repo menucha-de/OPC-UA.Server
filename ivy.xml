@@ -4,10 +4,15 @@
 	<info organisation="havis/opcua" module="server-${platform}" default="true" />
 
 	<configurations>
+		<conf name="default" />
+		<conf name="runtime" />
+		<conf name="module"/>
+		<conf name="src" />
 	</configurations>
 
 	<dependencies>
-		<dependency org="havis/opcua" name="stack-${platform}" rev="1.5.6_1" />
+		<dependency org="havis/util/core" name="core-api" rev="${havis.version}" conf="default->default,src;module" />
+		<dependency org="havis/util/core" name="core-common" rev="${havis.version}" conf="default->default,src;module" />
 	</dependencies>
 
 </ivy-module>

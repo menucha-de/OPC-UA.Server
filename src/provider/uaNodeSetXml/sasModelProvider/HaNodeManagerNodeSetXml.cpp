@@ -252,6 +252,12 @@ UaStatus HaNodeManagerNodeSetXml::writeValues(const UaVariableArray& arrUaVariab
             arrStatusCodes);
 }
 
+OpcUa_Boolean HaNodeManagerNodeSetXml::beforeSetAttributeValue(
+        Session* pSession, UaNode* pNode, OpcUa_Int32 attributeId,
+        const UaDataValue& dataValue, OpcUa_Boolean& checkWriteMask) {
+	return d->nmioBridge->beforeSetAttributeValue(pSession, pNode, attributeId, dataValue, checkWriteMask);
+}
+
 void HaNodeManagerNodeSetXml::afterSetAttributeValue(Session* pSession, UaNode* pNode,
         OpcUa_Int32 attributeId, const UaDataValue & dataValue) {
     d->nmioBridge->afterSetAttributeValue(pSession, pNode, attributeId,

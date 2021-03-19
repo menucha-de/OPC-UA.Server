@@ -1,16 +1,9 @@
-add_library(binary SHARED   
-  common/ClientSocket.cpp
-  common/ClientSocketException.cpp
+add_library(binary SHARED  
   common/ConversionException.cpp
-  common/ServerSocket.cpp
-  common/ServerSocketException.cpp
-  common/TimeoutException.cpp
-  ioDataProvider/BinaryIODataProvider.cpp
-  ioDataProvider/BinaryIODataProviderFactory.cpp  
-  messages/BinaryMessageDeserializer.cpp
-  messages/BinaryMessageSerializer.cpp
+  common/TimeoutException.cpp 
+  jDataProvider/JDataProvider.cpp
+  jDataProvider/JDataProviderFactory.cpp
   messages/ConverterBin2IO.cpp
-  messages/MessageQueue.cpp
   messages/dto/Array.cpp
   messages/dto/Call.cpp
   messages/dto/CallResponse.cpp
@@ -34,17 +27,16 @@ add_library(binary SHARED
   messages/dto/Variant.cpp
   messages/dto/Write.cpp
   messages/dto/WriteResponse.cpp
-  messages/MessageDeserializerException.cpp
-  messages/MessageSerializerException.cpp
 )
 target_include_directories(binary PRIVATE
   ${LIBXML2_INCLUDE_DIR}
+  ${OPCUA_CLIENT_INCLUDE_DIRS}
 )
 target_link_libraries (binary PRIVATE
   serverapi
 )
 install(TARGETS binary DESTINATION ${installDirLibs})
-install(DIRECTORY ${resourcesDirConf}/binary DESTINATION ${installDirConf})
+#install(DIRECTORY ${resourcesDirConf}/binary DESTINATION ${installDirConf})
 
 # add library to provider libraries in parent scope
 set(providerLibraries

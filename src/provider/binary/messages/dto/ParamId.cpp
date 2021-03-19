@@ -1,5 +1,6 @@
 #include "ParamId.h"
 #include <sstream> // std::ostringstream
+
 #ifdef DEBUG
 #include <CppUTest/MemoryLeakDetectorNewMacros.h>
 #endif
@@ -52,6 +53,48 @@ ParamId::ParamId(const ParamId& orig) {
     }
 }
 
+ParamId::ParamId(std::string fullString){
+	//TODO ErrorHandling improvement
+	d = new ParamIdPrivate();
+	d->init(false);
+	std::vector<std::string> v = split(fullString, '|');
+
+	//Must have 3 elements
+	if (v.size() > 2){
+		//Namespace
+		std::vector<std::string> vns = split(v.at(0), 'S');
+		//Must have 2 elements
+		if (vns.size()>1){
+			std::istringstream(vns.at(1)) >> d->namespaceIndex;
+		}
+		//Type
+		if (v.at(1).compare("Numeric") == 0){
+			d->paramIdType = NUMERIC;
+		} else {
+			d->paramIdType = STRING;
+		}
+		//Identifier
+		switch (d->paramIdType) {
+			case NUMERIC:
+				std::istringstream(v.at(2)) >> d->numericId;
+				break;
+			case STRING:
+				d->setString(v.at(2));
+				break;
+		}
+	}
+}
+
+std::vector<std::string> ParamId::split(const std::string& s, char d){
+	std::vector<std::string> res;
+	std::string sub;
+	std::istringstream subStream(s);
+	while (std::getline(subStream,sub, d)){
+		res.push_back(sub);
+	}
+	return res;
+}
+
 ParamId::~ParamId() {
     d->clear();
     delete d;
@@ -75,17 +118,16 @@ const std::string& ParamId::getString() const {
 
 std::string ParamId::toString() const {
     std::ostringstream msg;
-    msg << "ParamId[namespaceIndex=" << d->namespaceIndex;
-    msg << ",type=";
+    msg << "NS" << d->namespaceIndex;
+    msg << "|";
     switch (d->paramIdType) {
         case NUMERIC:
-            msg << "numeric,value=" << d->numericId;
+            msg << "Numeric|" << d->numericId;
             break;
         case STRING:
-            msg << "string,value=" << d->stringId->c_str();
+            msg << "String|" << d->stringId->c_str();
             break;
     }
-    msg << "]";
     return msg.str();
 }
 

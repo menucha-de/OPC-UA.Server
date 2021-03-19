@@ -11,6 +11,10 @@ add_library(serverapi SHARED
   common/logging/Logger.cpp
   common/logging/LoggerFactory.cpp
   common/logging/LoggingException.cpp
+  common/logging/JLogger.cpp
+  common/logging/JLoggerFactory.cpp  
+  common/native2J/Native2J.cpp
+  common/native2J/MessageHandler.h
   ioDataProvider/Array.cpp
   ioDataProvider/Event.cpp
   ioDataProvider/IODataProvider.cpp
@@ -52,6 +56,9 @@ target_include_directories(serverapi PUBLIC
   ${OPCUA_SERVER_INCLUDE_DIRS}
   ${OPCUA_INCLUDE_DIRS}
   ${CPPUTEST_INCLUDE_DIR} # #include "CppUTest/MemoryLeakDetectorNewMacros.h"
+  ${JAVA_INCLUDE_PATH} # jni.h
+  ${JAVA_INCLUDE_PATH2} # jni_m.h
+  ${PROJECT_SOURCE_DIR}/src
 )
 install(TARGETS serverapi DESTINATION ${installDirLibs})
 
@@ -79,37 +86,38 @@ if (CMAKE_COMPILER_IS_GNUCC OR CMAKE_COMPILER_IS_GNUCXX)
   set(cpputestLibs -Wl,-whole-archive ${cpputestLibs} -Wl,-no-whole-archive)
 endif()
 target_link_libraries (server PRIVATE  
-  opcua
+  ${CMAKE_THREAD_LIBS_INIT}
+  ${LIBXML2_LIBRARIES}
+  ${OPENSSL_LIBRARIES}
+  ${opcuaLibs}
   serverapi
+  ${providerLibraries}
   ${CMAKE_DL_LIBS}
   ${cpputestLibs} # static
 )
 install(TARGETS server DESTINATION ${installDirLibs})
 
-#---------- server executable ----------
-add_executable(Server         
-  main.cpp
+add_library(opcua SHARED empty.cpp)
+set_target_properties(opcua PROPERTIES LINKER_LANGUAGE CXX)
+set(opcuaLibs ${OPCUA_LIBRARIES})
+if (CMAKE_COMPILER_IS_GNUCC OR CMAKE_COMPILER_IS_GNUCXX)
+  # provide all symbols for provider libraries
+  # -Wl: option for linker; -whole-archive: link the whole static library and not only the used symbols
+  set(opcuaLibs -Wl,-whole-archive ${opcuaLibs} -Wl,-no-whole-archive)
+endif()
+target_link_libraries (opcua PRIVATE
+  ${CMAKE_THREAD_LIBS_INIT}
+  ${LIBXML2_LIBRARIES}
+  ${OPENSSL_LIBRARIES}
+  ${opcuaLibs}
 )
-set_target_properties(Server PROPERTIES DEBUG_POSTFIX ${CMAKE_DEBUG_POSTFIX})
-target_include_directories(Server PRIVATE
-  # inherits the include dirs from linked serverapi library
-)
-target_link_libraries (Server PRIVATE
-  opcua
-  serverapi
-  ${CMAKE_DL_LIBS}
-  server
-)
-install(TARGETS Server DESTINATION ${installDirBase})
-install(PROGRAMS ${resourcesDirBase}/Server.sh DESTINATION ${installDirBase} CONFIGURATIONS Release)
-install(PROGRAMS ${resourcesDirBase}/Serverd.sh DESTINATION ${installDirBase} CONFIGURATIONS Debug)
-install(FILES ${resourcesDirConf}/ServerConfig.xml DESTINATION ${installDirConf})
-configure_file(${resourcesDirBase}/changelog.in ${installDirBase}/changelog)
+
+install(TARGETS opcua DESTINATION ${installDirLibs})
+
 
 #---------- binary server library ----------
 add_library(binaryserver SHARED
   binaryServer/CachedConverterCallback.cpp
-  binaryServer/ConfigLoader.cpp
   binaryServer/Event.cpp
   binaryServer/EventField.cpp
   binaryServer/HaSession.cpp
@@ -117,7 +125,7 @@ add_library(binaryserver SHARED
   binaryServer/HaSubscription.cpp
   binaryServer/HaSubscriptionException.cpp
   binaryServer/NodeAttributes.cpp  
-  binaryServer/Server.cpp
+  binaryServer/Client.cpp
   binaryServer/ServerException.cpp
   binaryServer/logging/ClientSdkLogger.cpp
   binaryServer/logging/ClientSdkLoggerFactory.cpp
@@ -141,32 +149,4 @@ target_link_libraries (binaryserver PRIVATE
 )
 install(TARGETS binaryserver DESTINATION ${installDirLibs})
 
-#---------- binary server executable ----------
-add_executable(BinaryServer
-  binaryServer/main.cpp
-)
-set_target_properties(BinaryServer PROPERTIES DEBUG_POSTFIX ${CMAKE_DEBUG_POSTFIX})
-target_include_directories(BinaryServer PRIVATE
-  # inherits the include dirs from linked serverapi library
-)
-target_link_libraries (BinaryServer PRIVATE
-  opcua
-  serverapi
-  binaryserver
-)
-install(TARGETS BinaryServer DESTINATION ${installDirBase})
-install(PROGRAMS ${resourcesDirBase}/BinaryServer.sh DESTINATION ${installDirBase} CONFIGURATIONS Release)
-install(PROGRAMS ${resourcesDirBase}/BinaryServerd.sh DESTINATION ${installDirBase} CONFIGURATIONS Debug)
-install(FILES ${resourcesDirConf}/BinaryServerConfig.xml DESTINATION ${installDirConf})
 
-# add libraries to test libraries in parent scope
-set(testLibraries
-  opcua
-  serverapi
-  ${providerLibraries}
-  ${CMAKE_DL_LIBS}
-  server
-  binaryserver
-
-  PARENT_SCOPE
-)

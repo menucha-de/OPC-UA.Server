@@ -1,0 +1,17 @@
+uaservice (3.0.1-1) unstable; urgency=medium
+
+  * Update version, adds Arburg alarm fields support
+
+ -- HARTING IT_SD <opensource@HARTING.com>  Thu, 17 Sep 2020 15:15:56 +0200
+
+uaservice (3.0.0-1) unstable; urgency=medium
+ 
+  * Update version
+ 
+ -- HARTING IT_SD <opensource@HARTING.com>  Thu, 17 Dec 2019 10:30:48 +0100
+
+uaservice (2.5.0-0) unstable; urgency=medium
+ 
+  * Initialization
+ 
+ -- HARTING IT_SD <opensource@HARTING.com>  Thu, 04 Jul 2019 10:09:48 +0200

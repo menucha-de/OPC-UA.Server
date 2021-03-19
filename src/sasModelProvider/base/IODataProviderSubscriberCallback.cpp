@@ -58,6 +58,7 @@ namespace SASModelProviderNamespace {
             const NodeData& nodeData = *nodeDataList[i];
             try {                
                 // convert NodeId to UaNodeId
+            	//d->log->error("Convert-> %s", nodeData.getNodeId().toString().c_str());
                 UaNodeId* nodeId = nmioBridge.convert(nodeData.getNodeId()); // ConversionException
                 ScopeGuard<UaNodeId> nodeIdSG(nodeId);
                 // if OPC UA event
@@ -66,14 +67,16 @@ namespace SASModelProviderNamespace {
                     // process the event
                     d->processOpcUaEvent(event.getDateTime(), *nodeId,
                             *static_cast<const OpcUaEventData*> (nodeData.getData())); // ConversionException, SubscriberCallbackException
-                } else {                    
+                } else {
+                	//d->log->error("NodeBrowser-> %s", nodeId->toString().toUtf8());
                     UaVariable* variable = d->nodeBrowser->getVariable(*nodeId);
                     if (variable == NULL) {
-                        throw ExceptionDef(SubscriberCallbackException,
-                                std::string("Unknown variable ")
-                                .append(variable->nodeId().toXmlString().toUtf8())
-                                .append(" received"));
+                    	return;
+//                        throw ExceptionDef(SubscriberCallbackException,
+//                                std::string("Unknown variable ")
+//                                .append(" received"));
                     }
+                    //d->log->error("<-NodeBrowser %s", nodeData.getNodeId().toString().c_str());
                     try {
                         // convert Variant to UaVariant
                         UaVariant* value = nodeData.getData() == NULL ? new UaVariant()
@@ -92,13 +95,13 @@ namespace SASModelProviderNamespace {
                 if (exception == NULL) {
                     exception = new ExceptionDef(SubscriberCallbackException,
                             std::string("Processing of event failed"));
+                    d->log->info(e.getMessage().c_str());
                     exception->setCause(&e);
                 }
             }
         }
         if (exception != NULL) {
-            ScopeGuard<SubscriberCallbackException> exceptionSG(exception);
-            throw *exception;
+        	return;
         }
     }
 

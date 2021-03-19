@@ -1,0 +1,2 @@
+resources/conf/provider/uanodesetxml/models/10_di.xml /etc/opcua/conf/provider/uanodesetxml/models/
+resources/conf/provider/uanodesetxml/models/21_requested.xml /etc/opcua/conf/provider/uanodesetxml/models/

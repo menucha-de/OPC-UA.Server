@@ -26,6 +26,7 @@ private:
     IODataProviderNamespace::Variant* convertBin2ioStructureValue(const Struct& value, int destNamespaceIndex);
 
     Variant* convertIo2binScalarValue(const IODataProviderNamespace::Scalar& value);
+    Variant* convertIo2binNodeIdValue(const IODataProviderNamespace::Variant& value);
     Variant* convertIo2binArrayValue(const IODataProviderNamespace::Array& value);
     Variant* convertIo2binStructureValue(const IODataProviderNamespace::Structure& value);
 };
@@ -115,6 +116,7 @@ Variant* ConverterBin2IO::convertIo2bin(const IODataProviderNamespace::Variant& 
     // string            - char[]
     // byteString        - byte[]
     // localizedText     - char[]
+    
     switch (value.getVariantType()) {
         case IODataProviderNamespace::Variant::SCALAR:
             return d->convertIo2binScalarValue(
@@ -125,6 +127,8 @@ Variant* ConverterBin2IO::convertIo2bin(const IODataProviderNamespace::Variant& 
         case IODataProviderNamespace::Variant::STRUCTURE:
             return d->convertIo2binStructureValue(
                     static_cast<const IODataProviderNamespace::Structure&> (value));
+        case IODataProviderNamespace::Variant::NODE_ID:
+            return d->convertIo2binNodeIdValue(value);
         case IODataProviderNamespace::Variant::NODE_PROPERTIES:
         case IODataProviderNamespace::Variant::OPC_UA_EVENT_DATA:
         default:
@@ -132,6 +136,9 @@ Variant* ConverterBin2IO::convertIo2bin(const IODataProviderNamespace::Variant& 
                     std::string("Unsupported variant type ").append(value.toString()));
     }
 }
+
+
+
 
 IODataProviderNamespace::Variant* ConverterBin2IOPrivate::convertBin2ioScalarValue(
         const Scalar& value)/* throws ConversionException */ {
@@ -280,6 +287,23 @@ IODataProviderNamespace::Variant* ConverterBin2IOPrivate::convertBin2ioStructure
             true /*attachValues*/);
 }
 
+Variant* ConverterBin2IOPrivate::convertIo2binNodeIdValue(const IODataProviderNamespace::Variant& value)
+{
+    std::vector<const Variant*>* elements = new std::vector<const Variant*>();
+    std::string copyStr(value.toString());
+    const char* str =  copyStr.c_str();
+    if (str != NULL) {
+        for (size_t i = 0; i < copyStr.length(); i++) {
+            Scalar* s = new Scalar();
+            s->setChar(str[i]);
+            elements->push_back(s);
+        }
+    }
+    Array* array = new Array(Scalar::CHAR, *elements, true/* attachValues*/);
+    return array;
+}
+
+
 Variant* ConverterBin2IOPrivate::convertIo2binScalarValue(
         const IODataProviderNamespace::Scalar& value)/* throws ConversionException */ {
     Scalar* scalar = NULL;
@@ -423,6 +447,7 @@ Variant* ConverterBin2IOPrivate::convertIo2binArrayValue(const IODataProviderNam
         case IODataProviderNamespace::Scalar::STRING:
         case IODataProviderNamespace::Scalar::BYTE_STRING:
         case IODataProviderNamespace::Scalar::LOCALIZED_TEXT:
+        case IODataProviderNamespace::Scalar::VARIANT:
             arrayType = Scalar::ARRAY;
             break;
         case IODataProviderNamespace::Variant::STRUCTURE:

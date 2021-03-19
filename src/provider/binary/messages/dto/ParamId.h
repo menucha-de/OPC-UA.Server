@@ -2,6 +2,8 @@
 #define PROVIDER_BINARY_MESSAGES_DTO_PARAMID_H
 
 #include <string>
+#include <vector>
+
 
 class ParamIdPrivate;
 
@@ -18,7 +20,9 @@ public:
     // is delegated to the NodeId instance.
     ParamId(int namespaceIndex, const std::string& id, bool attachValues = false);
     // Creates a deep copy of the instance.
-    ParamId(const ParamId& paramId);    
+    ParamId(const ParamId& paramId);
+    //From Full String  e.g. NS0|Numeric|1007
+    ParamId(std::string fullString);
     virtual ~ParamId();
 
     virtual Type getParamIdType() const;
@@ -31,10 +35,15 @@ public:
     virtual const std::string& getString() const;
 
     virtual std::string toString() const;
+
 private:    
     ParamId& operator=(const ParamId& orig);
     
     ParamIdPrivate* d;
+
+    std::vector<std::string> split(const std::string& s, char d);
+
+
 };
 
 #endif /* PROVIDER_BINARY_MESSAGES_DTO_PARAMID_H */

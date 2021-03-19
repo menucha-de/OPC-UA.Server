@@ -1,0 +1,11 @@
+Bundle-Name: Ha-VIS OPC-UA Java Library
+Bundle-SymbolicName: havis.util.opcua
+Bundle-Version: 3.0.0
+Implementation-Version: 3.0
+Bundle-ManifestVersion: 2
+Bundle-Vendor: HARTING IT_SD
+Havis-Bundle: 
+ /OSGI-INF/havis.util.opcua.properties
+Export-Package: 
+ havis.util.opcua,
+ havis.util.opcua.processing

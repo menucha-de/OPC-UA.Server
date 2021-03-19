@@ -9,6 +9,9 @@
 #include <uanodeid.h> // UaNodeId
 #include <map>
 #include <vector>
+#include <uaclientsdk.h>
+
+using namespace UaClientSdk;
 
 class HaSessionPrivate;
 
@@ -23,6 +26,7 @@ public:
         std::string* password;
         int connectTimeout;
         int sendReceiveTimeout;
+        int watchdogInterval;
         int maxReconnectDelay;
         int publishingInterval;
     };
@@ -36,6 +40,7 @@ public:
         /* throws Exception */ = 0;
         virtual void newEvents(std::vector<const BinaryServerNamespace::Event*>& events)
         /* throws Exception */ = 0;
+        virtual void connectionStateChanged(int state) = 0;
     };
 
     HaSession(Configuration& conf, HaSessionCallback& callback) /*throws MutexException*/;
@@ -45,6 +50,8 @@ public:
     virtual void close() /* throws HaSessionException, HaSubscriptionException */;
 
     virtual UaStringArray getNamespaceTable() const;
+
+    virtual std::string getSessionId();
 
     virtual UaStructureDefinition getStructureDefinition(const UaNodeId& dataTypeId);
     // Returns the super types incl. the first one in namespace 0 starting with the nearest parent.
@@ -62,6 +69,12 @@ public:
     // The components are responsible for destroying their own sub structures.
     virtual std::vector<UaVariant*>* call(const UaNodeId& methodId, const UaNodeId& objectId,
             const std::vector<UaVariant*>& params) /*throws HaSessionException*/;
+
+    virtual UaStatus browse(ServiceSettings &settings, const UaNodeId &startingNode, BrowseContext &context, UaByteString &continuationPoint, UaReferenceDescriptions &referenceDescriptions);
+    virtual UaStatus browseNext(ServiceSettings &settings, OpcUa_Boolean  releaseContinuationPoint, UaByteString &continuationPoint, UaReferenceDescriptions &referenceDescriptions);
+
+    virtual UaVariant getVariable(const UaNodeId &variableNodeId);
+
     virtual void subscribe(const std::vector<const UaNodeId*>& nodeIds,
             std::vector<NodeAttributes*>& returnNodeAttributes,
             std::map<UaNodeId, std::vector<BinaryServerNamespace::EventField*>*>& returnEventFields) /* throws HaSubscriptionException */;

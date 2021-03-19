@@ -1,0 +1,4 @@
+target/*.jar /opt/havis-apps/modules/
+resources/conf/ServerConfig.xml /etc/opcua/conf/
+usr/lib/*.so
+usr/lib/provider/*.so

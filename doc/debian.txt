@@ -57,5 +57,5 @@ cpputest-3.7.2:
   make install
 
 server:
-  DEB_HOST_GNU_TYPE=arm-linux-gnueabihf CMAKE_TOOLCHAIN_FILE=CMakeCross.txt ./build.sh
+  DEB_HOST_GNU_TYPE=arm-linux-gnueabihf CMAKE_TOOLCHAIN_FILE=CMakeCross.txt ./build.sh //deprecated
 

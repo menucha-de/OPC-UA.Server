@@ -4,19 +4,17 @@ project(Server)
 # load properties
 include(cmake.properties)
 
-set(CMAKE_CXX_FLAGS "-std=c++98")
+set(CMAKE_CXX_FLAGS "-std=c++98 -gdwarf-4")
 
 set(SERVER_INCLUDE_DIRS
   ${CMAKE_CURRENT_SOURCE_DIR}/include
   ${CMAKE_BINARY_DIR}/src # files created with configure_file
 )
 
-set(libDirBase ${CMAKE_CURRENT_SOURCE_DIR}/target/ivy-${arch}/lib)
-
 set(resourcesDirBase ${CMAKE_CURRENT_SOURCE_DIR}/resources)
 set(resourcesDirConf ${resourcesDirBase}/conf)
 
-set(installDirBase ${CMAKE_INSTALL_PREFIX}/server-${arch}-${CMAKE_BUILD_TYPE})
+set(installDirBase ${CMAKE_INSTALL_PREFIX})
 set(installDirLibs ${installDirBase}/lib)
 set(installDirConf ${installDirBase}/conf)
 
@@ -37,6 +35,14 @@ find_package(OpenSSL REQUIRED)
 # libraries: ${LIBXML2_LIBRARIES} 
 # includes: ${LIBXML2_INCLUDE_DIR}
 find_package(LibXml2 REQUIRED)
+# includes: ${JAVA_INCLUDE_PATH}
+set(JAVA_AWT_LIBRARY NotNeeded)
+set(JAVA_JVM_LIBRARY NotNeeded)
+set(JAVA_AWT_INCLUDE_PATH NotNeeded)
+find_package(JNI REQUIRED)
+
+
+
 
 #---------- OPC UA libraries ----------
 add_definitions(
@@ -48,10 +54,10 @@ add_definitions(
   -D_UA_STACK_USE_DLL
 )
 set(OPCUA_INCLUDE_DIRS    
-  ${libDirBase}/ua-dev/include/uastack
-  ${libDirBase}/ua-dev/include/uabase  
-  ${libDirBase}/ua-dev/include/uapki
-  ${libDirBase}/ua-dev/include/xmlparser
+  /usr/include/uastack
+  /usr/include/uabase  
+  /usr/include/uapki
+  /usr/include/xmlparser
 )
 if (CMAKE_BUILD_TYPE STREQUAL "Debug")
     find_library(uamoduleLib NAMES uamoduled PATHS ${libDirBase})
@@ -80,31 +86,30 @@ foreach(opcuaLib ${OPCUA_LIBRARIES})
   message("Found OPC UA: ${opcuaLib}")
 endforeach()
 
-add_library(opcua SHARED)
-set_target_properties(opcua PROPERTIES LINKER_LANGUAGE CXX)
-set(opcuaLibs ${OPCUA_LIBRARIES})
-if (CMAKE_COMPILER_IS_GNUCC OR CMAKE_COMPILER_IS_GNUCXX)
-  # provide all symbols for provider libraries
-  # -Wl: option for linker; -whole-archive: link the whole static library and not only the used symbols
-  set(opcuaLibs -Wl,-whole-archive ${opcuaLibs} -Wl,-no-whole-archive)
-endif()
-target_link_libraries (opcua PRIVATE
-  ${CMAKE_THREAD_LIBS_INIT}
-  ${LIBXML2_LIBRARIES}
-  ${OPENSSL_LIBRARIES}
-  ${opcuaLibs}
-)
-install(TARGETS opcua DESTINATION ${installDirLibs})
-install(FILES ${uastackLib} DESTINATION ${installDirLibs})
-
 #---------- OPC UA server libraries ----------
-set(OPCUA_SERVER_INCLUDE_DIRS    
-  ${libDirBase}/ua-dev/include/uaserver
+set(OPCUA_SERVER_INCLUDE_DIRS
+  /usr/include/uaserver
+)
+
+#---------- Playground
+add_executable(playground test/src/playground.cpp)
+target_include_directories(playground PRIVATE
+  src
+  include
+  /usr/include/uabase
+  /usr/include/uastack
+)
+target_link_libraries (playground PRIVATE
+  opcua
+  binary
+  binaryserver
+  serverapi
+  uastack
 )
 
 #---------- OPC UA client libraries ----------
 set(OPCUA_CLIENT_INCLUDE_DIRS
-  ${libDirBase}/ua-dev/include/uaclient
+  /usr/include/uaclient
 )
 if (CMAKE_BUILD_TYPE STREQUAL "Debug")
     find_library(uaclientLib NAMES uaclientd PATHS ${libDirBase})
@@ -155,6 +160,7 @@ endif()
 # list for test libraries
 set(testLibraries)
 add_subdirectory(src)
+add_subdirectory(src/main/native)
 
 if (CMAKE_BUILD_TYPE STREQUAL "Debug")
   add_subdirectory(test)

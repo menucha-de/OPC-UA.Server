@@ -13,7 +13,7 @@ target_link_libraries (uanodesetxml PRIVATE
   serverapi
 )
 install(TARGETS uanodesetxml DESTINATION ${installDirLibs})
-install(DIRECTORY ${resourcesDirConf}/uanodesetxml DESTINATION ${installDirConf})
+#install(DIRECTORY ${resourcesDirConf}/uanodesetxml DESTINATION ${installDirConf})
 
 # add library to provider libraries in parent scope
 set(providerLibraries
